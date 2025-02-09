@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <!-- Se preferir evitar qualquer zoom, descomente o maximum-scale, mas atenção à acessibilidade -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!--<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">-->
+  <title>‘Não nos Envergonhamos das Boas Novas’</title>
+  
+  <!-- Biblioteca html2pdf -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <style>
+    /* Para evitar quebra de página esquisita */
+    .container, ul, li {
+      page-break-inside: auto !important; 
+      /* break-inside: auto; <- se o PDF viewer suportar essa propriedade mais recente */
+    }
+    
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      background-color: #fff;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1, h2 {
+      font-size: 24px;
+      margin: 0.5em 0;
+      text-align: left;
+    }
+    .verso-biblico {
+      font-weight: bold;
+      font-size: 16px;
+      margin: 0 0 2em;
+      color: #1A73E8;
+      text-align: left;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    li {
+      margin-bottom: 14px;
+    }
+    /* Ajuste para quebra de linha no textarea */
+    textarea {
+      width: 100%;
+      padding: 8px;
+      font-size: 16px; 
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: none;
+      overflow: hidden; /* Se quiser barras de rolagem quando exceder tamanho, troque p/ auto */
+      margin: 8px 0 10px;
+      display: none;
+      height: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    }
+    .image-upload {
+      width: 100%;
+      max-width: 400px;
+      height: 50px;
+      margin: 1px auto 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .image-upload img {
+      max-width: 100%;
+      max-height: 300px;
+    }
+    #image-input,
+    #image-input-bottom {
+      display: none;
+    }
+    /* Classes para evitar estilos inline */
+    .clickable {
+      cursor: pointer;
+    }
+    .subtopics {
+      margin: 10px 0 0 20px;
+    }
+    .subtopics > div {
+      margin-bottom: 10px; /* Espaçamento entre os itens dos sub tópicos */
+    }
+    .bullet {
+      font-weight: bold;
+      margin-right: 6px;
+    }
+    /* Estilo para o botão de exportar PDF */
+    .btn-pdf {
+      display: block;
+      margin: 20px auto;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .btn-pdf:hover {
+      background-color: #0056b3;
+    }
+  </style>
+  
+  <script>
+    function triggerImageUpload(inputId) {
+      document.getElementById(inputId).click();
+    }
+    
+    function previewImage(event, containerId) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const imgContainer = document.getElementById(containerId);
+          imgContainer.innerHTML = `<img src="${e.target.result}" alt="Imagem selecionada">`;
+          const img = imgContainer.querySelector('img');
+          img.onload = function() {
+            imgContainer.style.height = img.height + 'px';
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+    
+    function autoResizeTextarea(element) {
+      element.style.height = 'auto';
+      element.style.height = element.scrollHeight + 'px';
+    }
+    
+    function toggleTextarea(id) {
+      const textarea = document.getElementById(id);
+      textarea.style.display = (textarea.style.display === 'block') ? 'none' : 'block';
+      if (textarea.style.display === 'block') {
+        autoResizeTextarea(textarea);
+      }
+    }
+    
+    // Função para exportar o conteúdo da div.container em PDF
+    // Substitui temporariamente os <textarea> por <div> que preservam as quebras de linha
+    function exportPDF() {
+      const container = document.querySelector('.container');
+      const textareas = container.querySelectorAll('textarea');
+      const replacements = [];
+
+      // Cria um <div> para cada textarea, copiando seu conteúdo e estilos
+      textareas.forEach(textarea => {
+        const div = document.createElement('div');
+        // Preserva as quebras de linha
+        div.innerText = textarea.value;
+        // Define estilos para preservar a formatação
+        div.style.whiteSpace = 'pre-wrap';
+        div.style.wordWrap = 'break-word';
+        div.style.overflowWrap = 'break-word';
+        const computedStyle = window.getComputedStyle(textarea);
+        div.style.width = computedStyle.width;
+        div.style.padding = computedStyle.padding;
+        div.style.fontFamily = computedStyle.fontFamily;
+        div.style.fontSize = computedStyle.fontSize;
+        div.style.border = computedStyle.border;
+        div.style.borderRadius = computedStyle.borderRadius;
+        div.style.margin = computedStyle.margin;
+        
+        // Insere o <div> antes do textarea e oculta o textarea
+        textarea.parentNode.insertBefore(div, textarea);
+        textarea.style.display = 'none';
+        
+        // Armazena a referência para restaurar depois
+        replacements.push({ textarea, div });
+      });
+
+      const options = {
+        margin: [10, 10, 10, 10],
+        filename: 'projeto.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 1, 
+          scrollY: 0,
+          windowWidth: document.documentElement.offsetWidth 
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { 
+          mode: ['css', 'legacy']
+        }
+      };
+
+      html2pdf().set(options).from(container).save().then(() => {
+        // Após a geração do PDF, remove os <div> substitutos e restaura os <textarea>
+        replacements.forEach(({ textarea, div }) => {
+          div.parentNode.removeChild(div);
+          textarea.style.display = '';
+        });
+      });
+    }
+  </script>
+</head>
+<body>
+  <!-- Upload de imagem (topo) -->
+  <div id="image-container" class="image-upload" onclick="triggerImageUpload('image-input')"></div>
+  <input type="file" id="image-input" accept="image/*" onchange="previewImage(event, 'image-container')">
+  
+  <div class="container">
+    <h1>‘Não nos Envergonhamos das Boas Novas’</h1>
+    <div class="verso-biblico">ROMANOS 1:16</div>
+
+    <!-- MANHÃ -->
+    <h2>Manhã</h2>
+    <ul>
+      <li>9:40 - Música</li>
+      <li>9:50 - Cântico 67 e oração</li>
+      <li>10:00 - ‘Não nos envergonhamos das boas novas’ — Por quê?</li>
+      <li>10:15 - Defenda as boas novas com coragem</li>
+      <li>10:30 - Seja “um trabalhador que não tem nada de que se envergonhar”</li>
+      <li>10:55 - Cântico 73 e anúncios</li>
+      <li>
+        <div class="clickable" onclick="toggleTextarea('textarea1105')">
+          11:05 - Mostre um espírito de poder, de amor e de bom senso
+        </div>
+        <textarea id="textarea1105" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+      </li>
+      <li>
+        <div class="clickable" onclick="toggleTextarea('textarea1135')">
+          11:35 - <strong>Batismo:</strong> Continuem a ser “submissos às boas novas”
+        </div>
+        <textarea id="textarea1135" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+      </li>
+      <li>12:05 - Cântico 75</li>
+    </ul>
+
+    <!-- TARDE -->
+    <h2>Tarde</h2>
+    <ul>
+      <li>1:20 - Música</li>
+      <li>1:30 - Cântico 77</li>
+      <li>
+        <div class="clickable" onclick="toggleTextarea('textarea135')">
+          1:35 - Experiências
+        </div>
+        <textarea id="textarea135" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+      </li>
+      <li>
+        <div class="clickable" onclick="toggleTextarea('textarea145')">
+          1:45 - Resumo de <em>A Sentinela</em>
+        </div>
+        <textarea id="textarea145" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+      </li>
+      <li>
+        <div>2:15 <strong>Série de discursos:</strong> Não nos envergonhamos…</div>
+        <div class="subtopics">
+          <div>
+            <span class="bullet">•</span>
+            <span class="clickable" onclick="toggleTextarea('subtopicoPadroes')">
+              Dos padrões de moral de Deus
+            </span>
+            <textarea id="subtopicoPadroes" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+          </div>
+          <div>
+            <span class="bullet">•</span>
+            <span class="clickable" onclick="toggleTextarea('subtopicoReino')">
+              Do Reino de Deus
+            </span>
+            <textarea id="subtopicoReino" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+          </div>
+          <div>
+            <span class="bullet">•</span>
+            <span class="clickable" onclick="toggleTextarea('subtopicoRepresentantes')">
+              Dos representantes de Deus
+            </span>
+            <textarea id="subtopicoRepresentantes" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+          </div>
+        </div>
+      </li>
+      <li>3:00 - Cântico 40 e anúncios</li>
+      <li>
+        <div class="clickable" onclick="toggleTextarea('textarea310')">
+          3:10 - ‘Fale de Jeová com orgulho’
+        </div>
+        <textarea id="textarea310" wrap="soft" oninput="autoResizeTextarea(this)"></textarea>
+      </li>
+      <li>3:55 - Cântico 7 e oração</li>
+    </ul>
+    
+    <!-- Botão para exportar para PDF -->
+    <button class="btn-pdf" onclick="exportPDF()">Exportar PDF</button>
+  </div>
+  
+  <!-- Upload de imagem (base) -->
+  <div id="image-container-bottom" class="image-upload" onclick="triggerImageUpload('image-input-bottom')"></div>
+  <input type="file" id="image-input-bottom" accept="image/*" onchange="previewImage(event, 'image-container-bottom')">
+</body>
+</html>
